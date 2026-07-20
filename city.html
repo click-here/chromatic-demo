@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="robots" content="noindex, nofollow">
+<meta charset="utf-8">
+<link rel="icon" type="image/svg+xml" href="./favicon.svg" sizes="any">
+<title>Chromatic</title>
+<style>
+  :root {
+    --ink: #e6edf3; --ink2: #9aa4b2; --ink3: #67708a;
+    --gold: #ffd479; --gold-dim: #b08a3d;
+    --panel: rgba(11,15,24,.78); --line: rgba(120,140,180,.22);
+  }
+  html, body { margin: 0; height: 100%; background: #0a0e1a; overflow: hidden;
+    font-family: ui-sans-serif, system-ui, sans-serif; color: var(--ink); }
+  #stage { position: fixed; inset: 0; }
+  #vignette { position: fixed; inset: 0; pointer-events: none; z-index: 5;
+    background: radial-gradient(ellipse at 50% 42%, transparent 55%, rgba(4,6,12,.55) 100%); }
+  .panel { position: fixed; z-index: 10; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; backdrop-filter: blur(8px); }
+  .lbl { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--ink3); }
+  button { background: #161b22; color: var(--ink); border: 1px solid #30363d;
+    border-radius: 8px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
+  button:hover { border-color: var(--gold-dim); }
+  button:disabled { opacity: .4; cursor: default; }
+  #helpBtn { width: 24px; height: 24px; border-radius: 50%; padding: 0;
+    font-size: 12px; color: var(--ink2); }
+  #layersBtn { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--ink2); }
+  #layersList { margin: 12px 0; }
+  #layersList .lrow { padding: 7px 0; border-bottom: 1px solid rgba(120,140,180,.12); }
+  #layersList .lrow:last-child { border-bottom: none; }
+  #layersList label { display: flex; gap: 9px; align-items: baseline;
+    font-size: 12.5px; cursor: pointer; }
+  #layersList .ldesc { font-size: 11px; color: var(--ink3); }
+  #layersList .locked { font-size: 12.5px; color: var(--ink3); opacity: .5; }
+
+  #top { top: 14px; left: 14px; right: 14px; display: flex; align-items: center;
+    gap: 20px; padding: 10px 18px; }
+  #top .wordmark { font-size: 13px; letter-spacing: 5px; font-weight: 600;
+    /* chrome lettering (universe-survey: typography was the weakest
+       synthwave grammar element); the accent A keeps its gold */
+    background: linear-gradient(180deg, #e8f2ff 0%, #b8c6e0 34%, #5a6a8a 47%,
+      #e2eeff 52%, #8a9ac0 72%, #313d5c 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #top .wordmark span { color: var(--gold); }
+  #top .day, #top .haul { font-size: 12.5px; color: var(--ink2); }
+  #top .haul b { color: var(--gold); font-size: 15px; }
+  #top .note { font-size: 10px; color: var(--ink3); }
+  #top .grow { flex: 1; }
+
+  #now { top: 74px; left: 14px; width: 256px; padding: 14px 16px; display: none; }
+  #now .sess { padding: 9px 0; border-bottom: 1px solid rgba(120,140,180,.12); }
+  #now .sess:last-of-type { border-bottom: none; }
+  #now .nm { font-size: 12.5px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+  #now .dot { width: 7px; height: 7px; border-radius: 50%; background: #7ee08a; }
+  #now .dot.ripe { background: var(--gold); }
+  #now .dot.cold { background: #4a5570; }
+  #now .sub { font-size: 11px; color: var(--ink2); margin-top: 3px; }
+  #now .chip { display: inline-block; margin-top: 6px; padding: 4px 9px; border-radius: 6px;
+    font-size: 10.5px; background: rgba(255,212,121,.12); color: var(--gold);
+    border: 1px solid rgba(255,212,121,.35); font-family: ui-monospace, monospace; cursor: pointer; }
+
+  #viewsBtn { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--gold); border-color: rgba(255,212,121,.35); display: none; }
+  #viewsList { margin: 12px 0; }
+  #viewsList .vrow { padding: 7px 0; border-bottom: 1px solid rgba(120,140,180,.12);
+    display: flex; gap: 9px; align-items: baseline; font-size: 12.5px; cursor: pointer; }
+  #viewsList .vrow:last-child { border-bottom: none; }
+  #viewsList .vrow.on { color: var(--gold); }
+  #viewsList .vkey { font-family: ui-monospace, monospace; font-size: 10.5px;
+    color: var(--ink3); border: 1px solid var(--line); border-radius: 4px;
+    padding: 1px 5px; }
+  #viewsList .vdesc { font-size: 11px; color: var(--ink3); }
+
+  #hist { left: 14px; bottom: 14px; width: 256px; padding: 14px 16px; display: none; }
+  #hist .bars { display: flex; align-items: flex-end; gap: 4px; height: 56px; margin-top: 10px; }
+  #hist .b { flex: 1; position: relative; border-radius: 3px 3px 0 0; background: #8a6f3d; min-height: 3px; }
+  #hist .b:hover { background: var(--gold); }
+  #hist .b::after { content: attr(data-v); position: absolute; bottom: calc(100% + 6px);
+    left: 50%; transform: translateX(-50%); padding: 3px 7px; border-radius: 5px;
+    background: #1c2230; color: var(--ink); font-size: 10px; white-space: nowrap;
+    opacity: 0; pointer-events: none; transition: opacity .12s; }
+  #hist .b:hover::after { opacity: 1; }
+  #hist .b.best { background: #c89b42; }
+  #hist .b.today { background: var(--gold); animation: pulse 2.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { filter: brightness(1.35); } }
+  @media (prefers-reduced-motion: reduce) { #hist .b.today { animation: none; } }
+  #hist .foot { display: flex; justify-content: space-between; font-size: 10px;
+    color: var(--ink3); margin-top: 7px; }
+
+  #ticker { left: 50%; bottom: 14px; transform: translateX(-50%); width: 540px;
+    padding: 10px 16px; display: none; }
+  #ticker .row { font-size: 11px; color: var(--ink2); margin-top: 3px; }
+  #ticker .row.quiet { color: var(--ink3); }
+  #next { top: 74px; left: 50%; transform: translateX(-50%); display: none;
+    padding: 10px 22px; font-size: 15px; color: var(--gold);
+    border-color: rgba(255,212,121,.4); border-radius: 20px;
+    white-space: nowrap; z-index: 11; }
+  #caption { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
+    z-index: 10; font-size: 12.5px; color: var(--ink2); white-space: nowrap;
+    text-shadow: 0 1px 8px rgba(0,0,0,.9); opacity: 0; transition: opacity .6s;
+    pointer-events: none; }
+
+  #yc { top: 74px; right: 14px; width: 250px; padding: 12px 14px; display: none; }
+  #yc #ycCounts { font-size: 12px; margin-top: 6px; }
+  #yc #ycList { font-size: 11px; margin-top: 4px; line-height: 1.6; color: var(--ink2); }
+
+  dialog { background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 14px; padding: 22px 24px; max-width: 380px; backdrop-filter: blur(10px); }
+  dialog::backdrop { background: rgba(4,6,12,.6); }
+  dialog h2 { margin: 0 0 8px; font-size: 16px; }
+  dialog p { font-size: 12.5px; color: var(--ink2); line-height: 1.55; }
+  dialog .choices { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+
+  #banner { top: 130px; left: 50%; transform: translateX(-50%); padding: 10px 14px;
+    font-size: 11.5px; color: var(--ink2); display: none; }
+  #toast { top: 130px; left: 50%; transform: translateX(-50%); padding: 9px 16px;
+    font-size: 11.5px; color: var(--gold); border-color: rgba(255,212,121,.5);
+    display: none; z-index: 12; }
+
+  #introLoad { font-size: 11px; color: var(--ink3); margin: 10px 0 12px;
+    letter-spacing: .4px; }
+  dialog button.ghost { background: transparent; border: 1px solid var(--line);
+    color: var(--ink2); margin-left: 8px; }
+
+  /* demo view switcher: appears as views unlock during the growth story */
+  #viewBar { right: 14px; bottom: 14px; display: none; gap: 6px; padding: 8px;
+    flex-direction: column; align-items: stretch; }
+  #viewBar button { font-size: 11px; padding: 5px 10px; text-align: left;
+    white-space: nowrap; }
+  #viewBar button.on { color: var(--gold); border-color: rgba(255,212,121,.5); }
+
+  /* !important because panels also toggle their own inline display */
+  body.clean .panel, body.clean #caption { display: none !important; }
+
+  /* focus mode (the "hide panels" button): drop the data panels, keep the
+     top bar, the narration caption, toasts, and the view buttons */
+  body.focus #now, body.focus #yc, body.focus #hist, body.focus #ticker,
+  body.focus #next, body.focus #banner { display: none !important; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="vignette"></div>
+
+<div id="top" class="panel">
+  <span class="wordmark">CHROM<span>A</span>TIC</span>
+  <span class="day" id="dayLbl"></span>
+  <span class="grow"></span>
+  <span class="haul">earned today <b id="haulLbl">0</b></span>
+  <button id="viewsBtn" title="ways of seeing the city">views</button>
+  <button id="layersBtn" title="choose what the page shows">layers</button>
+  <button id="focusBtn" title="hide the panels, keep the city">hide panels</button>
+  <button id="helpBtn" title="how the city works">?</button>
+</div>
+
+<div id="next" class="panel"></div>
+<div id="caption"></div>
+
+<div id="now" class="panel">
+  <div class="lbl" id="nowHdr">now</div>
+  <div id="sessList"></div>
+</div>
+
+<div id="banner" class="panel">signal lost &middot; the city rests until the server returns</div>
+<div id="toast" class="panel"></div>
+
+<div id="yc" class="panel">
+  <div class="lbl">your city</div>
+  <div id="ycCounts"></div>
+  <div id="ycList"></div>
+</div>
+
+<div id="hist" class="panel">
+  <div class="lbl">daily haul &middot; last 14 days</div>
+  <div class="bars" id="bars"></div>
+  <div class="foot"><span id="histStart"></span><span id="histBest"></span><span>today</span></div>
+</div>
+
+<div id="viewBar" class="panel"></div>
+
+<div id="ticker" class="panel">
+  <div class="lbl">just now</div>
+  <div id="tickRows"></div>
+</div>
+
+<dialog id="viewsDlg">
+  <h2>Views</h2>
+  <p>ways of seeing the city · your work opens more of them</p>
+  <div id="viewsList"></div>
+  <button onclick="this.closest('dialog').close()">done</button>
+</dialog>
+
+<dialog id="dawnDlg">
+  <h2>Dawn over the city</h2>
+  <p id="dawnBody"></p>
+  <button onclick="this.closest('dialog').close()">good morning</button>
+</dialog>
+
+<dialog id="helpDlg">
+  <h2>How the city works</h2>
+  <p>
+  Your real Claude Code sessions feed the city. A <b>burst</b> is a stretch of
+  real work in a session (tool calls and turns since the last check) &middot;
+  not elapsed time.<br><br>
+  The city follows <b>one master plan</b>. Your bursts raise it stage by stage
+  &middot; nothing to buy, nothing to place. Building rises on real work, never
+  by the clock alone. Paused work just waits &middot; points never revert.<br><br>
+  <b>Brick</b> pays on every burst and measures steady work.<br>
+  <b>Glass</b> pays only when 2+ sessions work at once.<br>
+  <b>Gold leaf</b> pays two ways: rescue a session that sat idle 5+ minutes
+  (+1 to +3 by idle time), or set a personal best day (+2).<br><br>
+  Materials are never spent. They are meters of how you work, and they open
+  <b>views</b>: parallel work opens the overlook and the rooftop &middot;
+  rescues and record days open the train line and the cinematic tour. A view,
+  once open, stays open forever.<br><br>
+  While you are away the city banks a quiet trickle: 0.1 brick per minute,
+  capped at 100 per day, outside the haul.<br><br>
+  Every finished building keeps a plaque of who raised it. Nothing decays
+  &middot; nothing is ever taken away. The bottom caption shows the newest
+  payout &middot; the <b>event log</b> layer keeps the last few on screen
+  &middot; click a building for its plaque.
+  </p>
+  <button onclick="this.closest('dialog').close()">back to the city</button>
+</dialog>
+
+<dialog id="introDlg">
+  <h2>Welcome to Chromatic</h2>
+  <p>
+  <b>Your real work builds this city.</b> Chromatic watches your Claude
+  Code sessions and every stretch of real work raises another building.
+  The city only ever grows &middot; nothing decays, nothing is taken
+  away.<br><br>
+  This is a <b>demo</b> with staged sessions, so weeks of city life play
+  out in about a minute. Drag to look around, click a building for its
+  story, or just watch. Curious how it scores? The <b>?</b> button.
+  </p>
+  <div id="introLoad">assembling the city&hellip;</div>
+  <button id="growBtn" disabled>watch your city grow</button>
+  <button id="skipBtn" class="ghost" disabled>skip ahead &middot; the grown city</button>
+  <button id="enterBtn" style="display:none"
+    onclick="this.closest('dialog').close()">enter the city</button>
+</dialog>
+
+<dialog id="layersDlg">
+  <h2>Layers</h2>
+  <p>the city runs the same either way &middot; layers only change what the page
+     shows &middot; turn them on and off any time</p>
+  <div id="layersList"></div>
+  <button onclick="this.closest('dialog').close()">done</button>
+</dialog>
+
+<dialog id="plaqueDlg">
+  <h2 id="plaqueTitle"></h2>
+  <p id="plaqueBody"></p>
+  <button onclick="this.closest('dialog').close()">close</button>
+</dialog>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three.module.js"
+} }
+</script>
+<script type="module">
+import {
+  CONSTANTS, CATALOG, MASTER_PLAN, VIEWS, newState, applyTick, haulOf,
+  migrate, reviveState, plotName, nextStage,
+  formatTickerLine, nextAction, demoState, demoAdvance,
+  LAYERS, fireMoments, pickInvitation, markInvited,
+  setLayerEnabled, invitationLine,
+} from './city-game.js';
+import { createScene } from './city-scene.js';
+
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const PARAMS = new URLSearchParams(location.search);
+const CALM = PARAMS.has('calm');           // pin the baseline; change nothing
+const DEMO = PARAMS.has('demo');           // fabricate the fullest city; persist nothing
+// the demo growth story (2026-07-19): interactive visitors start on an
+// EMPTY city and watch real usage raise it through the master plan, with
+// views unlocking along the way - that is the product, told in a minute.
+// QA pins (?shot/shotf/clean/ride/lounge/cine=0) and ?grown keep the old
+// full-city cinematic boot, so every approved screenshot path is intact.
+const GROWFLOW = DEMO && !PARAMS.has('shotf') && !PARAMS.has('clean')
+  && !PARAMS.has('shot') && !PARAMS.has('ride') && !PARAMS.has('lounge')
+  && !PARAMS.has('grown') && PARAMS.get('cine') !== '0';
+// ?growx=N speeds the growth clock N-fold (QA: watch the whole arc fast)
+const GROWX = Math.max(1, parseFloat(PARAMS.get('growx') || '1') || 1);
+const REVEAL_ALL = PARAMS.get('reveal') === 'all' || DEMO; // show everything; persist nothing
+// dev: auto-reload so freshly exported models drop in while assets are being built
+if (PARAMS.has('watch')) setTimeout(() => location.reload(), 30000);
+
+// hide every text panel for a pure view of the city: ?clean, or the h key
+if (PARAMS.has('clean')) document.body.classList.add('clean');
+// focus mode: one button drops the data panels but keeps the caption,
+// toasts, and view buttons - the "just let me look at it" mode. (Plain
+// getElementById: the $ helper is declared further down.)
+document.getElementById('focusBtn').onclick = (ev) => {
+  const on = document.body.classList.toggle('focus');
+  ev.target.textContent = on ? 'show panels' : 'hide panels';
+};
+addEventListener('keydown', (ev) => {
+  if (ev.key !== 'h' || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+  if (/^(INPUT|TEXTAREA)$/.test(ev.target.tagName)) return;
+  document.body.classList.toggle('clean');
+});
+const layerOn = (id) => REVEAL_ALL || (!CALM && !!(state && state.layers.enabled[id]));
+const $ = (id) => document.getElementById(id);
+
+let state = null;
+let scene = null;
+let connected = true;
+let saveTimer = null;
+let lastSaveMs = 0;
+let baseSavedAt = null; // savedAt the server last acknowledged; never stored in state
+const SAVE_DEBOUNCE_MS = 5000;
+const SAVE_MAX_INTERVAL_MS = 30000;
+let pendingDawns = [];
+let lastSnap = null;
+const ticker = []; // in-memory only; empty after reload, never persisted
+
+async function loadState() {
+  let server = null;
+  try {
+    const r = await fetch('/api/game');
+    if (r.ok) server = await r.json();
+  } catch (e) { /* server unreachable; fall through */ }
+  baseSavedAt = server ? (server.savedAt || 0) : null;
+  let cached = null;
+  try { cached = JSON.parse(localStorage.getItem('chromatic_city') || 'null'); } catch (e) {}
+  let pick;
+  if (server && cached) {
+    // only trust the cache if it was last synced against this exact server state;
+    // otherwise it may be a stale tab's write that never made it past the server
+    const cacheDescendsFromServer =
+      localStorage.getItem('chromatic_city_base') === String(server.savedAt || 0);
+    if ((cached.savedAt || 0) > (server.savedAt || 0) && cacheDescendsFromServer) {
+      pick = cached;
+    } else {
+      pick = server;
+      localStorage.setItem('chromatic_city', JSON.stringify(server)); // purge the poison
+    }
+  } else {
+    pick = server || cached;
+  }
+  if (server) localStorage.setItem('chromatic_city_base', String(baseSavedAt));
+  return pick ? reviveState(pick, Date.now()) : null; // null signals first run
+}
+
+function scheduleSave() {
+  if (DEMO) return; // the demo preview never persists
+  if (Date.now() - lastSaveMs > SAVE_MAX_INTERVAL_MS) { saveNow(); return; }
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveNow, SAVE_DEBOUNCE_MS);
+}
+function saveNow(unload = false) {
+  if (DEMO || !state) return;
+  clearTimeout(saveTimer);
+  lastSaveMs = Date.now();
+  state.savedAt = Date.now();
+  const stamped = state.savedAt;
+  const body = JSON.stringify(state);
+  localStorage.setItem('chromatic_city', body);
+  // keep the cached base in step with whatever base this write is built on, so a save
+  // that never gets acknowledged (e.g. the tab closes before the PUT lands) still leaves
+  // an honest trail instead of looking newly-synced
+  localStorage.setItem('chromatic_city_base', String(baseSavedAt || 0));
+  const opts = { method: 'PUT', body, headers: {} };
+  if (baseSavedAt !== null) opts.headers['X-Base-Saved-At'] = String(baseSavedAt);
+  if (unload) opts.keepalive = true;
+  fetch('/api/game', opts).then(r => {
+    if (r.status === 204) {
+      baseSavedAt = stamped;
+      localStorage.setItem('chromatic_city_base', String(baseSavedAt));
+    } else if (r.status === 409) adoptServerCopy();
+  }).catch(() => {});
+}
+
+async function adoptServerCopy() {
+  // another tab holds a newer save; ours must not survive anywhere
+  try {
+    const r = await fetch('/api/game');
+    if (!r.ok) return;
+    const raw = await r.json();
+    baseSavedAt = raw.savedAt || 0;
+    localStorage.setItem('chromatic_city_base', String(baseSavedAt));
+    localStorage.setItem('chromatic_city', JSON.stringify(raw));
+    state = reviveState(raw, Date.now());
+    render();
+  } catch (e) {}
+}
+addEventListener('beforeunload', () => saveNow(true));
+
+function firstRun() {
+  let s = newState(Date.now());
+  // migrate old loop Light if present
+  try {
+    const old = JSON.parse(localStorage.getItem('chromatic_game') || 'null');
+    if (old && typeof old.light === 'number') s = migrate(s, old.light).state;
+  } catch (e) {}
+  state = s;
+  scheduleSave(); // no founding dialog: the plan starts rising on its own
+}
+
+function pushTicker(line) {
+  if (!line) return;
+  ticker.push(line);
+  while (ticker.length > 4) ticker.shift();
+  $('tickRows').innerHTML = ticker.map((l, i) =>
+    '<div class="row" style="opacity:' +
+    (0.45 + 0.55 * (i + 1) / ticker.length).toFixed(2) + '">' + l + '</div>').join('');
+}
+
+let captionTimer = null;
+function pushCaption(line) {
+  if (!line) return;
+  pushTicker(line); // the event-log layer keeps the full list
+  if (layerOn('eventlog')) return; // panel visible; no floating caption
+  const el = $('caption');
+  el.textContent = line;
+  el.style.opacity = '1';
+  clearTimeout(captionTimer);
+  captionTimer = setTimeout(() => { el.style.opacity = '0'; }, 6000);
+}
+
+function applyLayers() {
+  $('now').style.display = layerOn('sessions') ? 'block' : 'none';
+  $('yc').style.display = layerOn('yourcity') ? 'block' : 'none';
+  $('hist').style.display = layerOn('history') ? 'block' : 'none';
+  $('ticker').style.display = layerOn('eventlog') ? 'block' : 'none';
+  $('layersBtn').style.display = (CALM || REVEAL_ALL) ? 'none' : 'inline-block';
+}
+
+// --- views: the unlockable vantages (designed-growth spec) --------------
+// Locked views are invisible, not greyed out: the city announces arrivals,
+// it does not advertise what has not been earned. The demo's attract reel
+// owns the camera, so the switcher hides there.
+const STREET = { id: 'street', name: 'street orbit', key: '1',
+  desc: 'drag to look around · the default' };
+const VIEW_DESC = {
+  overlook: 'the city from the hillside',
+  rooftop: 'a slow skim above the roofline',
+  ride: 'follow the train around the loop',
+  tour: 'the full six-shot reel',
+};
+let currentView = 'street';
+const unlockedViews = () =>
+  VIEWS.filter(v => state && state.views && state.views.unlocked[v.id]);
+function setView(id) {
+  currentView = id;
+  scene && scene.setView(id === 'street' ? 'orbit' : id);
+  renderViewsList();
+  renderViewBar();
+}
+// demo view switcher: a persistent button strip (visitors won't find a
+// dialog behind a tiny button; the buttons ARE the story of unlocks)
+function renderViewBar() {
+  const bar = $('viewBar');
+  if (!GROWFLOW || !state) { bar.style.display = 'none'; return; }
+  const vs = [STREET, ...unlockedViews()];
+  bar.style.display = vs.length > 1 ? 'flex' : 'none';
+  bar.innerHTML = '';
+  for (const v of vs) {
+    const b = document.createElement('button');
+    b.className = currentView === v.id ? 'on' : '';
+    b.textContent = v.key + ' · ' + v.name;
+    b.onclick = () => setView(v.id);
+    bar.appendChild(b);
+  }
+}
+function renderViewsList() {
+  const box = $('viewsList');
+  box.innerHTML = '';
+  for (const v of [STREET, ...unlockedViews()]) {
+    const row = document.createElement('div');
+    row.className = 'vrow' + (currentView === v.id ? ' on' : '');
+    row.innerHTML = '<span class="vkey">' + v.key + '</span><span>' + v.name +
+      '</span> <span class="vdesc">' + (v.desc || VIEW_DESC[v.id] || '') + '</span>';
+    row.onclick = () => setView(v.id);
+    box.appendChild(row);
+  }
+}
+$('viewsBtn').onclick = () => { renderViewsList(); $('viewsDlg').showModal(); };
+addEventListener('keydown', (ev) => {
+  // view keys work for real cities and for the demo growth story; the
+  // QA-pinned demo variants keep them off so screenshots stay deterministic
+  if ((DEMO && !GROWFLOW) || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+  if (/^(INPUT|TEXTAREA)$/.test(ev.target.tagName)) return;
+  if (ev.key === STREET.key) { setView('street'); return; }
+  const v = unlockedViews().find(x => x.key === ev.key);
+  if (v) setView(v.id);
+});
+
+function render() {
+  if (!state) return;
+  applyLayers();
+  const days = Math.floor((Date.now() - state.createdMs) / 86400000) + 1;
+  $('dayLbl').textContent = 'Day ' + days;
+  $('haulLbl').textContent = haulOf(state.today);
+
+  // the views switcher appears once there is something to switch to
+  $('viewsBtn').style.display =
+    (!DEMO && !CALM && unlockedViews().length) ? 'inline-block' : 'none';
+  renderViewBar();
+
+  // history bars
+  const bars = $('bars');
+  bars.innerHTML = '';
+  const rows = [...state.history, { dayKey: state.todayKey, haul: haulOf(state.today), today: true }];
+  const best = state.records.bestHaul ? state.records.bestHaul.value : 0;
+  const max = Math.max(best, ...rows.map(r => r.haul), 1);
+  for (const r of rows.slice(-14)) {
+    const b = document.createElement('div');
+    b.className = 'b' + (r.today ? ' today' : '') +
+      (best && r.haul === best && !r.today ? ' best' : '');
+    b.style.height = Math.max(5, Math.round(r.haul / max * 100)) + '%';
+    b.dataset.v = (r.today ? 'today · ' : '') + r.haul;
+    bars.appendChild(b);
+  }
+  $('histStart').textContent = rows.length ? rows[0].dayKey : '';
+  $('histBest').textContent = best ? '✦ best ' + best : '';
+
+  const toCome = MASTER_PLAN.length - state.buildings.length - (state.queue ? 1 : 0);
+  // never say "0 still to come": for a visitor that reads as the end of
+  // growth, which is the opposite of the pitch
+  $('ycCounts').textContent = state.buildings.length + ' built · ' +
+    (state.queue ? 1 : 0) + ' rising · ' +
+    (toCome > 0 ? toCome + ' still to come' : 'surveying the next district');
+  const rows_yc = [];
+  if (state.queue) {
+    const qi = CATALOG.find(c => c.id === state.queue.type);
+    const left = Math.max(0, state.queue.laborNeeded - state.queue.laborDone);
+    rows_yc.push('<span style="color:var(--gold)">' + qi.name + ' · rising on ' +
+      plotName(state.queue.tile) + ' plot · ' + left + ' points to go</span>');
+  }
+  const newest = state.buildings.slice(-3).reverse();
+  for (const b of newest) {
+    rows_yc.push(CATALOG.find(c => c.id === b.type).name + ' · ' + plotName(b.tile) + ' plot');
+  }
+  const more = state.buildings.length - newest.length;
+  if (more > 0) rows_yc.push('<span style="color:var(--ink3)">and ' + more + ' more</span>');
+  $('ycList').innerHTML = rows_yc.join('<br>');
+
+  const na = lastSnap ? nextAction(state, lastSnap) : null;
+  $('next').style.display = na ? 'block' : 'none';
+  $('next').textContent = na || '';
+
+  scene && scene.updateCity(state);
+}
+
+function showToast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => { t.style.display = 'none'; }, 5000);
+}
+
+function renderSessions(snap) {
+  const list = $('sessList');
+  const sessions = (snap.sessions || [])
+    .filter(s => s.status !== 'cold' ||
+      (Date.now() - s.last_activity_ms) < 6 * 3600000)
+    .sort((a, b) => a.idle_seconds - b.idle_seconds)
+    .slice(0, 5);
+  $('nowHdr').textContent = 'now · ' + sessions.length + ' session' +
+    (sessions.length === 1 ? '' : 's');
+  list.innerHTML = '';
+  for (const s of sessions) {
+    const ripe = s.status !== 'working' && s.idle_seconds >= CONSTANTS.RIPE_IDLE_S;
+    const div = document.createElement('div');
+    div.className = 'sess';
+    const dot = s.status === 'working' ? '' : (ripe ? ' ripe' : ' cold');
+    let sub;
+    if (s.status === 'working') {
+      sub = 'working &middot; feeding the city';
+    } else if (ripe) {
+      const worth = Math.max(1, Math.min(1 + Math.floor(s.idle_seconds / 1800),
+        CONSTANTS.RESCUE_GOLD_MAX));
+      sub = 'rescue: run claude --resume to revive this session &middot; <b>+' +
+        worth + ' gold leaf</b>';
+    } else {
+      sub = 'resting';
+    }
+    div.innerHTML = '<div class="nm"><span class="dot' + dot + '"></span>' +
+      (s.project || '?') + ' &middot; ' + (s.title || s.session_id.slice(0, 6)) +
+      '</div><div class="sub">' + sub + '</div>';
+    if (ripe) {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      const cmd = 'claude --resume ' + s.session_id;
+      chip.textContent = cmd + ' · copy';
+      chip.onclick = () => {
+        navigator.clipboard.writeText(cmd);
+        chip.textContent = 'copied ✓';
+        setTimeout(() => { chip.textContent = cmd + ' · copy'; }, 1500);
+      };
+      div.appendChild(chip);
+    }
+    list.appendChild(div);
+  }
+}
+
+function maybeShowDawn() {
+  if (!pendingDawns.length) return;
+  if (new Date().getHours() < 5) return;
+  if (document.visibilityState !== 'visible') return;
+  if ($('dawnDlg').open) return;
+  const d = pendingDawns.shift();
+  let body = 'Yesterday banked <b>' + d.yesterday.haul + '</b> materials.';
+  if (d.passiveGift) body += ' The city added a gift of ' + d.passiveGift + ' brick while you rested.';
+  if (d.record) body += ' That set a new personal best. +' + CONSTANTS.RECORD_GOLD + ' gold leaf.';
+  if (!d.yesterday.haul) body = 'A quiet day. The city kept its light on for you.';
+  $('dawnBody').innerHTML = body;
+  $('dawnDlg').showModal();
+}
+document.addEventListener('visibilitychange', () => {
+  maybeShowDawn();
+  scene && scene.setPaused(document.visibilityState !== 'visible');
+});
+$('dawnDlg').addEventListener('close', () => setTimeout(maybeShowDawn, 0));
+$('helpBtn').onclick = () => $('helpDlg').showModal();
+
+function renderLayersMenu() {
+  const box = $('layersList');
+  box.innerHTML = '';
+  for (const l of LAYERS) {
+    const row = document.createElement('div');
+    row.className = 'lrow';
+    if (!state.layers.fired[l.id]) {
+      row.innerHTML = '<span class="locked">' + l.name + '</span>';
+    } else {
+      row.innerHTML = '<label><input type="checkbox" data-layer="' + l.id + '"' +
+        (state.layers.enabled[l.id] ? ' checked' : '') + '> <span>' + l.name +
+        '</span> <span class="ldesc">' + l.desc + '</span></label>';
+    }
+    box.appendChild(row);
+  }
+}
+$('layersBtn').onclick = () => { renderLayersMenu(); $('layersDlg').showModal(); };
+$('layersList').addEventListener('change', (ev) => {
+  const id = ev.target.dataset.layer;
+  if (!id) return;
+  state = setLayerEnabled(state, id, ev.target.checked);
+  scheduleSave();
+  render();
+});
+
+async function poll() {
+  let snap = null;
+  try {
+    const r = await fetch('/api/snapshot');
+    if (r.ok) snap = await r.json();
+  } catch (e) {}
+  if (!snap) {
+    connected = false;
+    $('banner').style.display = 'block';
+    return;
+  }
+  if (!connected) { connected = true; $('banner').style.display = 'none'; }
+
+  lastSnap = snap;
+
+  if (state === null) { firstRun(); }
+
+  const { state: next, events } = applyTick(state, snap, Date.now());
+  state = next;
+  for (const ev of events) {
+    pushCaption(formatTickerLine(ev));
+    if (ev.type === 'earn' && scene) {
+      scene.spark(state.queue ? state.queue.tile : null);
+    }
+    if (ev.type === 'complete' && scene) scene.celebrateComplete(ev.building.tile);
+    if (ev.type === 'view') showToast(formatTickerLine(ev)); // the arrival moment
+    if (ev.type === 'dawn') pendingDawns.push(ev);
+  }
+  if (events.length) scheduleSave();
+  if (!CALM && !REVEAL_ALL) {
+    const fm = fireMoments(state, snap);
+    if (fm.fired.length) { state = fm.state; scheduleSave(); }
+    if (document.visibilityState === 'visible') {
+      const inv = pickInvitation(state, Date.now());
+      if (inv) {
+        state = markInvited(state, inv, Date.now());
+        pushCaption(invitationLine(inv));
+        scheduleSave();
+      }
+    }
+  }
+
+  const working = (snap.sessions || []).filter(s => s.status === 'working').length;
+  scene && scene.setLiveliness(Math.min(1, working / 3), working);
+  renderSessions(snap);
+  render();
+  maybeShowDawn();
+}
+
+// a lively fake snapshot for the demo: three sessions working at once (full
+// liveliness). Fresh last_activity_ms each call, so every applyTick pays a
+// burst - that is what keeps scripted life earning and raising. Bursts are
+// kept small (3 units) so the cycle build rises at a watchable pace.
+function demoSnap() {
+  const now = Date.now();
+  const s = (over) => ({ recent_tool_calls: 2, recent_turns: 1, ...over });
+  return { now, counts: {}, totals: null, sessions: [
+    s({ session_id: 'demo-a', project: 'chromatic', title: 'city preview',
+      last_activity_ms: now - 2000, idle_seconds: 2, status: 'working' }),
+    s({ session_id: 'demo-b', project: 'lanternworks', title: 'deck build',
+      last_activity_ms: now - 5000, idle_seconds: 5, status: 'working' }),
+    s({ session_id: 'demo-c', project: 'moonpool', title: 'render pass',
+      last_activity_ms: now - 9000, idle_seconds: 9, status: 'working' }),
+    s({ session_id: 'demo-d', project: 'quiet-harbor', title: 'between tasks',
+      last_activity_ms: now - 120000, idle_seconds: 120, status: 'resting',
+      recent_tool_calls: 0, recent_turns: 0 }),
+  ] };
+}
+
+// boot
+(async () => {
+  applyLayers();
+  // first thing a demo visitor sees: what this is. Reads while GLBs load.
+  // QA runs (pinned shots, clean frames) skip it so screenshots stay clear.
+  if (DEMO && !PARAMS.has('shotf') && !PARAMS.has('clean')) {
+    if (!GROWFLOW) {   // pinned variants keep the old single-button card
+      $('growBtn').style.display = 'none';
+      $('skipBtn').style.display = 'none';
+      $('enterBtn').style.display = 'inline-block';
+      $('introLoad').style.display = 'none';
+    }
+    $('introDlg').showModal();
+  }
+  // the growth story starts on an EMPTY city; everything else keeps the
+  // fabricated full city
+  state = DEMO ? (GROWFLOW ? newState(Date.now()) : demoState(Date.now()))
+    : await loadState();
+  scene = await createScene($('stage'), {
+    reducedMotion: REDUCED, assetBase: './assets/city/',
+    // growth story: the ambient city starts hidden and builds out band by
+    // band as the plan rises (see setWorldStage); skip reveals instantly
+    growReveal: GROWFLOW,
+    // loading progress feeds the welcome card while the GLBs stream in
+    onProgress: (done, total) => {
+      $('introLoad').textContent = 'assembling the city · ' + done + '/' + total;
+    },
+    // demo attract mode: eased shot list instead of the plain orbit.
+    // ?cine=0 opts out; ?shot=N&shott=S jump the loop for screenshots.
+    // The growth story boots NON-cinematic: the camera starts on the free
+    // orbit drift and the reel arrives later as the tour VIEW.
+    cinematic: DEMO && !GROWFLOW && PARAMS.get('cine') !== '0',
+    startShot: parseInt(PARAMS.get('shot') || '0', 10) || 0,
+    shotTime: parseFloat(PARAMS.get('shott') || '0') || 0,
+    shotFreeze: PARAMS.has('shotf'),
+    // ?ride: spend the whole visit inside the train instead of the shot loop
+    rideOnly: PARAMS.has('ride'),
+    // ?lounge: sit inside the rooftop skybar while the camera pans the city
+    loungeOnly: PARAMS.has('lounge'),
+    // ?quality=high|low|0..4 pins render quality; default is an fps-driven
+    // auto governor (see the quality tiers block in city-scene.js)
+    quality: PARAMS.get('quality') || undefined,
+    // ?vibe=off|all|name,name pins the universe-survey trial features
+    // (see the VIBE SAMPLER block in city-scene.js; v key opens the panel)
+    vibe: PARAMS.get('vibe') || undefined,
+  });
+  scene.onBuildingClick((b) => {
+    const item = CATALOG.find(c => c.id === b.type);
+    $('plaqueTitle').textContent = item.name + ' · ' + plotName(b.tile) + ' plot';
+    const funders = Object.entries(b.plaque.contributions)
+      .sort((a, x) => x[1] - a[1])
+      .map(([p, u]) => p + ' (' + u + ' points)').join(', ');
+    $('plaqueBody').innerHTML = 'raised by ' + (funders || 'quiet days') +
+      '<br>day ' + b.plaque.startedDayKey + ' to ' + b.plaque.completedDayKey;
+    $('plaqueDlg').showModal();
+  });
+  if (state) render();
+
+  // scripted life: fabricated sessions keep bursting through the REAL
+  // game logic, so the city earns, sparks, and forever raises a building
+  // on the cycle plot - complete, celebrate, hold, reset, repeat. No
+  // polling, no saving; the fabricated state never leaves this tab.
+  function startScriptedLife() {
+    lastSnap = demoSnap();
+    render();
+    renderSessions(lastSnap);
+    scene.setLiveliness(1, 3);
+    const DEMO_TYPES = ['fountain', 'hall', 'shop', 'workshop', 'house'];
+    let cycle = 0;
+    let holding = false;   // let a finished building stand before the reset
+    setInterval(() => {
+      if (document.visibilityState !== 'visible' || holding) return;
+      lastSnap = demoSnap();
+      const { state: next, events } = applyTick(state, lastSnap, Date.now());
+      state = next;
+      for (const ev of events) {
+        pushCaption(formatTickerLine(ev));
+        if (ev.type === 'earn') scene.spark(state.queue ? state.queue.tile : null);
+        if (ev.type === 'complete') {
+          scene.celebrateComplete(ev.building.tile);
+          holding = true;
+          setTimeout(() => {
+            state = demoAdvance(state, DEMO_TYPES[cycle % DEMO_TYPES.length], cycle + 1);
+            cycle++;
+            holding = false;
+            render();
+          }, 9000);
+        }
+      }
+      render();
+      renderSessions(lastSnap);
+    }, 2600);
+  }
+
+  // growth story: weeks of real usage compressed to about a minute. The
+  // REAL earn loop runs on a fast simulated clock - stages, dawns, records,
+  // rescues, and view gates all happen through the actual rules, nothing
+  // is force-fed. Sessions join one by one so glass (parallel work) and
+  // its unlocks arrive as narrative beats.
+  function growSnap(simNow, phase, dLastWork) {
+    const w = (id, project, title) => ({ session_id: id, project, title,
+      last_activity_ms: simNow - 2000, idle_seconds: 2, status: 'working',
+      recent_tool_calls: 3, recent_turns: 2 });
+    const sessions = [w('demo-a', 'chromatic', 'city preview')];
+    if (phase.b) sessions.push(w('demo-b', 'lanternworks', 'deck build'));
+    if (phase.c) sessions.push(w('demo-c', 'moonpool', 'render pass'));
+    if (phase.d === 'working') {
+      sessions.push(w('demo-d', 'quiet-harbor', 'refactor sweep'));
+    } else if (phase.d === 'ripe') {
+      // parked long enough to be worth rescuing. Activity stays FROZEN at
+      // the last working moment (the sim clock outruns any fixed offset,
+      // and a moving timestamp would trip the rescue while still resting)
+      sessions.push({ session_id: 'demo-d', project: 'quiet-harbor',
+        title: 'refactor sweep', last_activity_ms: dLastWork,
+        idle_seconds: 400, status: 'resting',
+        recent_tool_calls: 0, recent_turns: 0 });
+    }
+    return { now: simNow, counts: {}, totals: null, sessions };
+  }
+  const WORLD_TH = [0.1, 0.36, 0.6, 0.84];   // mirror scene setWorldStage
+  const WORLD_LINES = [
+    'the first blocks rise around your plots',
+    'downtown rises around your city',
+    'the outer districts fill in',
+    'the skyline reaches the horizon',
+  ];
+  let worldStage = 0;
+  // from-nothing beats: the site starts as bare ground; infrastructure
+  // arrives in story order before the first building tops out
+  const INFRA_BEATS = [
+    [0.8, 'plots', 'the site is surveyed · eighteen plots wait'],
+    [2.2, 'streets', 'the streets are laid · the lights come on'],
+    [8.5, 'transit', 'the loop line opens'],
+  ];
+  const infraDone = new Set();
+  function startGrowth() {
+    const simStart = Date.now();
+    let simNow = simStart;
+    let dLastWork = 0;
+    const growTimer = setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      simNow += 4.8e6;                                   // ~1.33 sim-hours per tick
+      const el = (Date.now() - simStart) / 1000 * GROWX; // story seconds
+      // the staircase: sessions join one by one so each unlock lands as
+      // its own beat (~ride 18s, overlook 30s, rooftop 41s, rescue+tour
+      // ~54s, plan complete ~67s at 1x; verified headless via ?growx)
+      const phase = {
+        b: el > 42, c: el > 50,
+        d: el > 53 ? 'working' : el > 47 ? 'ripe' : el > 25 ? 'working' : 'off',
+      };
+      const snap = growSnap(simNow, phase, dLastWork);
+      if (phase.d === 'working') dLastWork = simNow - 2000;
+      const { state: next, events } = applyTick(state, snap, simNow);
+      state = next;
+      // the day label reads sim time, not wall time
+      state.createdMs = Date.now() - (simNow - simStart);
+      lastSnap = snap;
+      for (const ev of events) {
+        pushCaption(formatTickerLine(ev));
+        if (ev.type === 'earn') scene.spark(state.queue ? state.queue.tile : null);
+        if (ev.type === 'complete') scene.celebrateComplete(ev.building.tile);
+        if (ev.type === 'view') showToast(formatTickerLine(ev));
+        // dawns keep their ticker line but never modal during the story
+      }
+      const working = snap.sessions.filter(s => s.status === 'working').length;
+      scene.setLiveliness(Math.min(1, working / 3), working);
+      // infrastructure beats first (from nothing), then the ambient city
+      // builds out with the plan; caption each so the reveal reads as the
+      // world responding, not a glitch
+      for (const [at, key, line] of INFRA_BEATS) {
+        if (el < at || infraDone.has(key)) continue;
+        infraDone.add(key);
+        scene.setInfraStage(key);
+        pushCaption(line);
+      }
+      const f = state.buildings.length / MASTER_PLAN.length;
+      scene.setWorldStage(f);
+      while (worldStage < WORLD_LINES.length && f >= WORLD_TH[worldStage]) {
+        pushCaption(WORLD_LINES[worldStage]);
+        worldStage++;
+      }
+      render();
+      renderSessions(snap);
+      if (!state.queue && !nextStage(state)) {
+        clearInterval(growTimer);
+        scene.setWorldStage(1);
+        // the finished plan grants any views the clock did not get to:
+        // the growth ticks stop here, so a gate one dawn short of its
+        // gold would otherwise stay locked forever
+        for (const v of VIEWS) {
+          if (!state.views.unlocked[v.id]) state.views.unlocked[v.id] = state.todayKey;
+        }
+        showToast('the master plan is complete · this is your city');
+        pushCaption('the plan is built · the cinematic tour begins');
+        setTimeout(() => { setView('tour'); startScriptedLife(); }, 4500);
+      }
+    }, 500 / GROWX);
+  }
+  function skipToGrown() {
+    state = demoState(Date.now());
+    scene.setWorldStage(1, true);
+    render();
+    setView('tour');
+    startScriptedLife();
+  }
+  // QA handle for the growth arc
+  window.__demoGrowth = () => state && ({
+    built: state.buildings.length, rising: !!state.queue,
+    views: Object.keys((state.views && state.views.unlocked) || {}),
+    materials: state.materials,
+  });
+
+  if (DEMO) {
+    if (GROWFLOW) {
+      $('introLoad').textContent = 'the city is ready';
+      $('growBtn').disabled = false;
+      $('skipBtn').disabled = false;
+      $('growBtn').onclick = () => { $('introDlg').close(); startGrowth(); };
+      $('skipBtn').onclick = () => { $('introDlg').close(); skipToGrown(); };
+      render();
+      renderSessions({ sessions: [] });
+      return;
+    }
+    startScriptedLife();
+    return;
+  }
+  await poll();
+  setInterval(poll, 3000);
+})();
+</script>
+</body>
+</html>
